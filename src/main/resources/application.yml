@@ -12,12 +12,19 @@ spring:
       retries: 0
       #每当多个记录被发送到同一分区时，生产者将尝试将记录一起批量处理为更少的请求，默认值为16384(单位字节)
       batch-size: 16384
+      properties:
+        # 当生产端积累的消息达到batch-size或接收到消息linger.ms后,生产者就会将消息提交给kafka linger.ms为0表示每接收到一条消息就提交给kafka,这时候batch-size其实就没用了
+        linger.ms: 0
+        # 设置生产者轮询发送到每个分区 默认模式是 DefaultPartitioner：随机
+        partitioner.class: org.apache.kafka.clients.producer.RoundRobinPartitioner
       #生产者可用于缓冲等待发送到服务器的记录的内存总字节数，默认值为3355443
       buffer-memory: 33554432
       #key的Serializer类，实现类实现了接口org.apache.kafka.common.serialization.Serializer
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       #value的Serializer类，实现类实现了接口org.apache.kafka.common.serialization.Serializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # 客户端在进行发送和消费的时候，会缓存kafka的元数据。默认30秒
+      metadata-max-age-ms: 30000
     #---------consumer---------
     consumer:
       #用于标识此使用者所属的使用者组的唯一字符串
@@ -29,6 +36,22 @@ spring:
       enable-auto-commit: true
       #如果'enable-auto-commit'为true，则消费者偏移自动提交给Kafka的频率（以毫秒为单位），默认值为5000。
       auto-commit-interval: 100
+      properties:
+        session.timeout.ms: 120000    # 消费会话超时时间(超过这个时间consumer没有发送心跳,就会触发rebalance操作)
+        request.timeout.ms: 180000   # 消费请求超时时间
       # 值的序列化
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # 客户端在进行发送和消费的时候，会缓存kafka的元数据。默认30秒
+      metadata-max-age-ms: 30000
+      # 把分区分配给消费者的策略。RangeAssignor：默认。采用大部分分区都分配给消费者群组里的群主(即消费者0)的策略。RoundRobinAssignor：采用所有消费者平均分配分区策略
+      # 注意：无论分区个数变化或者消费者个数变化，都会触发再分配
+      partition-assignment-strategy: org.apache.kafka.clients.consumer.RoundRobinAssignor
+    listener:
+      # 在侦听器容器中运行的线程数。
+      #concurrency: 5
+      #listner负责ack，每调用一次，就立即commit
+      #ack-mode: manual_immediate
+      # 如果Broker上不存在至少一个配置的主题（topic），则容器是否无法启动，
+      # 该设置项结合Broker设置项allow.auto.create.topics=true，如果为false，则会自动创建不存在的topic
+      missing-topics-fatal: false
